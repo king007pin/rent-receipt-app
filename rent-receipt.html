@@ -14,6 +14,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --bg: #0a0a0f;
@@ -55,6 +58,7 @@
             text-align: center;
             margin-bottom: 24px;
             padding: 16px 0;
+            position: relative;
         }
 
         .header-logo {
@@ -82,6 +86,155 @@
         }
 
         .header p { color: var(--text-muted); font-size: 13px; font-weight: 400; }
+
+        .auth-area {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .auth-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface-elevated);
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .auth-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+        .auth-btn.google-btn {
+            background: white;
+            color: #333;
+            border-color: #ddd;
+        }
+
+        .auth-btn.google-btn:hover { background: #f5f5f5; }
+
+        .user-menu-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--surface-elevated);
+            color: var(--text-secondary);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .user-menu-btn:hover { border-color: var(--primary); }
+
+        .user-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            min-width: 240px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            display: none;
+        }
+
+        .user-dropdown.show { display: block; }
+
+        .user-dropdown .user-email {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .user-dropdown .sync-status {
+            font-size: 11px;
+            color: var(--success);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .user-dropdown .sync-status.offline { color: var(--warning); }
+
+        .user-dropdown .storage-info {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .user-dropdown .dropdown-btn {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface-elevated);
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            margin-bottom: 6px;
+        }
+
+        .user-dropdown .dropdown-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .user-dropdown .dropdown-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+        .sync-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .sync-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        .sync-dot.offline { background: var(--warning); }
+        .sync-dot.syncing { background: var(--primary); animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
 
         .app-container {
             background: var(--surface);
@@ -128,10 +281,7 @@
 
         .nav-tab.active svg { opacity: 1; }
 
-        .nav-tab:hover:not(.active) {
-            background: var(--surface-hover);
-            color: var(--text-secondary);
-        }
+        .nav-tab:hover:not(.active) { background: var(--surface-hover); color: var(--text-secondary); }
 
         .tab-content {
             display: none;
@@ -178,11 +328,7 @@
             font-size: 13px;
         }
 
-        .form-group label .hint {
-            font-size: 11px;
-            color: var(--text-muted);
-            font-weight: 400;
-        }
+        .form-group label .hint { font-size: 11px; color: var(--text-muted); font-weight: 400; }
 
         .form-group input, .form-group select {
             width: 100%;
@@ -237,11 +383,7 @@
             box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
         }
 
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
-        }
-
+        .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4); }
         .btn:active { transform: translateY(0); }
 
         .btn-secondary {
@@ -274,16 +416,9 @@
             box-shadow: none;
         }
 
-        .btn-danger:hover {
-            background: var(--danger);
-            color: white;
-        }
+        .btn-danger:hover { background: var(--danger); color: white; }
 
-        .btn-sm {
-            padding: 10px 14px;
-            font-size: 13px;
-            border-radius: 10px;
-        }
+        .btn-sm { padding: 10px 14px; font-size: 13px; border-radius: 10px; }
 
         .btn-row { display: flex; gap: 10px; }
         .btn-row .btn { flex: 1; margin-top: 0; }
@@ -496,12 +631,7 @@
             color: white;
         }
 
-        .receipt-footer {
-            text-align: center;
-            margin-top: 16px;
-            font-size: 11px;
-            color: var(--text-muted);
-        }
+        .receipt-footer { text-align: center; margin-top: 16px; font-size: 11px; color: var(--text-muted); }
 
         .history-list { display: flex; flex-direction: column; gap: 10px; }
 
@@ -578,13 +708,7 @@
             align-items: center;
         }
 
-        .modal-header h3 {
-            font-size: 16px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+        .modal-header h3 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 
         .modal-close {
             background: none;
@@ -671,11 +795,7 @@
             border: 1px solid var(--border);
         }
 
-        .stat-box .stat-value {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--accent);
-        }
+        .stat-box .stat-value { font-size: 18px; font-weight: 700; color: var(--accent); }
 
         .stat-box .stat-label {
             font-size: 10px;
@@ -710,11 +830,7 @@
         .building-card .bldg-meta span { margin-right: 14px; }
         .building-card .bldg-total { font-weight: 700; color: var(--success); font-size: 14px; }
 
-        .building-card .bldg-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
+        .building-card .bldg-actions { display: flex; gap: 8px; margin-top: 10px; }
 
         .building-card .bldg-actions button {
             padding: 6px 12px;
@@ -729,15 +845,8 @@
             font-weight: 500;
         }
 
-        .building-card .bldg-actions button:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-
-        .building-card .bldg-actions button.danger:hover {
-            border-color: var(--danger);
-            color: var(--danger);
-        }
+        .building-card .bldg-actions button:hover { border-color: var(--primary); color: var(--primary); }
+        .building-card .bldg-actions button.danger:hover { border-color: var(--danger); color: var(--danger); }
 
         .tenant-card {
             background: var(--surface-elevated);
@@ -760,12 +869,7 @@
         .tenant-card .tenant-phone { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
         .tenant-card .tenant-rent { font-weight: 700; color: var(--success); font-size: 14px; }
 
-        .tenant-card .tenant-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-            flex-wrap: wrap;
-        }
+        .tenant-card .tenant-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
         .tenant-card .tenant-actions button {
             padding: 6px 12px;
@@ -780,15 +884,8 @@
             font-weight: 500;
         }
 
-        .tenant-card .tenant-actions button:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-
-        .tenant-card .tenant-actions button.danger:hover {
-            border-color: var(--danger);
-            color: var(--danger);
-        }
+        .tenant-card .tenant-actions button:hover { border-color: var(--primary); color: var(--primary); }
+        .tenant-card .tenant-actions button.danger:hover { border-color: var(--danger); color: var(--danger); }
 
         .tenant-card.archived-card { opacity: 0.5; }
 
@@ -810,11 +907,7 @@
 
         .back-btn:hover { color: var(--primary); }
 
-        .confirm-dialog {
-            text-align: center;
-            padding: 10px 0;
-        }
-
+        .confirm-dialog { text-align: center; padding: 10px 0; }
         .confirm-dialog .confirm-icon { font-size: 48px; margin-bottom: 12px; }
         .confirm-dialog .confirm-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
         .confirm-dialog .confirm-msg { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
@@ -843,12 +936,7 @@
             letter-spacing: 0.5px;
         }
 
-        .filter-bar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; }
         .filter-bar select { flex: 1; }
 
         .migration-banner {
@@ -885,12 +973,7 @@
             letter-spacing: 1px;
         }
 
-        .section-divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border);
-        }
+        .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
         .receipt-history-btn {
             display: flex;
@@ -907,6 +990,31 @@
         }
 
         .receipt-history-btn:hover { text-decoration: underline; }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -915,6 +1023,7 @@
             <div class="header-logo">🏠</div>
             <h1>Rent Receipt</h1>
             <p>Building & Tenant Manager</p>
+            <div class="auth-area" id="authArea"></div>
         </div>
 
         <div class="app-container">
@@ -1099,7 +1208,27 @@
 
     <div class="toast" id="toast">Saved!</div>
 
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
     <script>
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyCixVbbhn-jc_yUI3qOZ6TuQYAxzDJj0is",
+            authDomain: "rent-receipt-app-573.firebaseapp.com",
+            projectId: "rent-receipt-app-573",
+            storageBucket: "rent-receipt-app-573.firebasestorage.app",
+            messagingSenderId: "276682868709",
+            appId: "1:276682868709:web:5a0b90b2c8efa9bcdb110c"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        const db = firebase.firestore();
+        db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+
+        // State
         let currentReceipt = null;
         let viewingHistoryIndex = null;
         let manualMode = false;
@@ -1108,15 +1237,42 @@
         let editingTenantId = null;
         let editingBuildingId = null;
 
+        let currentUser = null;
+        let unsubscribeListeners = [];
+        let isSyncing = false;
+        let localBuildings = [];
+        let localHistory = [];
+
         const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
         const currentYear = new Date().getFullYear();
 
         function genId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
 
-        function getBuildings() { return JSON.parse(localStorage.getItem('rr_buildings')) || []; }
-        function saveBuildings(buildings) { localStorage.setItem('rr_buildings', JSON.stringify(buildings)); }
-        function getHistory() { return JSON.parse(localStorage.getItem('rr_receiptHistory')) || []; }
-        function saveHistory(history) { localStorage.setItem('rr_receiptHistory', JSON.stringify(history)); }
+        // Local storage fallback
+        function getLocalBuildings() { return JSON.parse(localStorage.getItem('rr_buildings')) || []; }
+        function saveLocalBuildings(b) { localStorage.setItem('rr_buildings', JSON.stringify(b)); }
+        function getLocalHistory() { return JSON.parse(localStorage.getItem('rr_receiptHistory')) || []; }
+        function saveLocalHistory(h) { localStorage.setItem('rr_receiptHistory', JSON.stringify(h)); }
+
+        // Data access layer - works with both local and cloud
+        function getBuildings() { return currentUser ? localBuildings : getLocalBuildings(); }
+        function saveBuildings(buildings) {
+            if (currentUser) {
+                localBuildings = buildings;
+                syncAllBuildingsToCloud(buildings);
+            } else {
+                saveLocalBuildings(buildings);
+            }
+        }
+        function getHistory() { return currentUser ? localHistory : getLocalHistory(); }
+        function saveHistory(history) {
+            if (currentUser) {
+                localHistory = history;
+                syncAllHistoryToCloud(history);
+            } else {
+                saveLocalHistory(history);
+            }
+        }
 
         function findBuilding(id) { return getBuildings().find(b => b.id === id); }
         function findTenant(buildingId, tenantId) {
@@ -1143,13 +1299,8 @@
             return getActiveBuildings().reduce((sum, b) => sum + getBuildingMonthlyTotal(b), 0);
         }
 
-        function getTotalTenantCount() {
-            return getBuildings().reduce((sum, b) => sum + b.tenants.length, 0);
-        }
-
-        function getActiveTenantCount() {
-            return getActiveBuildings().reduce((sum, b) => sum + getActiveTenants(b.id).length, 0);
-        }
+        function getTotalTenantCount() { return getBuildings().reduce((sum, b) => sum + b.tenants.length, 0); }
+        function getActiveTenantCount() { return getActiveBuildings().reduce((sum, b) => sum + getActiveTenants(b.id).length, 0); }
 
         function showToast(message) {
             const toast = document.getElementById('toast');
@@ -1158,6 +1309,9 @@
             setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
+        function showLoading() { document.getElementById('loadingOverlay').classList.remove('hidden'); }
+        function hideLoading() { document.getElementById('loadingOverlay').classList.add('hidden'); }
+
         function openGenericModal(title, bodyHTML, footerHTML) {
             document.getElementById('genericModalTitle').textContent = title;
             document.getElementById('genericModalBody').innerHTML = bodyHTML;
@@ -1165,23 +1319,351 @@
             document.getElementById('genericModal').classList.add('active');
         }
 
-        function closeGenericModal() {
-            document.getElementById('genericModal').classList.remove('active');
+        function closeGenericModal() { document.getElementById('genericModal').classList.remove('active'); }
+        function closeReceipt() { document.getElementById('receiptModal').classList.remove('active'); }
+
+        document.getElementById('receiptModal').addEventListener('click', (e) => { if (e.target.id === 'receiptModal') closeReceipt(); });
+        document.getElementById('genericModal').addEventListener('click', (e) => { if (e.target.id === 'genericModal') closeGenericModal(); });
+
+        // ==================== FIREBASE SYNC ====================
+
+        function syncAllBuildingsToCloud(buildings) {
+            if (!currentUser) return;
+            isSyncing = true;
+            updateSyncIndicator();
+            const batch = db.batch();
+            const buildingsRef = db.collection('users').doc(currentUser.uid).collection('buildings');
+
+            buildingsRef.get().then(existingSnap => {
+                const existingIds = new Set();
+                existingSnap.forEach(doc => existingIds.add(doc.id));
+
+                buildings.forEach(b => {
+                    const ref = buildingsRef.doc(b.id);
+                    batch.set(ref, {
+                        name: b.name,
+                        address: b.address || '',
+                        archived: b.archived || false,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    const tenantsRef = ref.collection('tenants');
+                    tenantsRef.get().then(tSnap => {
+                        const existingTIds = new Set();
+                        tSnap.forEach(doc => existingTIds.add(doc.id));
+
+                        b.tenants.forEach(t => {
+                            batch.set(tenantsRef.doc(t.id), {
+                                name: t.name,
+                                phone: t.phone || '',
+                                flatUnit: t.flatUnit || '',
+                                archived: t.archived || false,
+                                movedOutDate: t.movedOutDate || null,
+                                settings: t.settings || {},
+                                previousReading: t.previousReading || 0,
+                                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                            existingTIds.delete(t.id);
+                        });
+
+                        existingTIds.forEach(tid => batch.delete(tenantsRef.doc(tid)));
+                    });
+
+                    existingIds.delete(b.id);
+                });
+
+                existingIds.forEach(bid => batch.delete(buildingsRef.doc(bid)));
+
+                batch.commit().then(() => {
+                    isSyncing = false;
+                    updateSyncIndicator();
+                }).catch(err => {
+                    console.error('Sync error:', err);
+                    isSyncing = false;
+                    updateSyncIndicator();
+                });
+            });
         }
 
-        function closeReceipt() {
-            document.getElementById('receiptModal').classList.remove('active');
+        function syncAllHistoryToCloud(history) {
+            if (!currentUser) return;
+            const receiptsRef = db.collection('users').doc(currentUser.uid).collection('receipts');
+
+            receiptsRef.get().then(existingSnap => {
+                const existingIds = new Set();
+                existingSnap.forEach(doc => existingIds.add(doc.id));
+
+                const batch = db.batch();
+                history.forEach(r => {
+                    batch.set(receiptsRef.doc(r.id), {
+                        buildingId: r.buildingId,
+                        buildingName: r.buildingName || '',
+                        tenantId: r.tenantId,
+                        tenantName: r.tenantName || '',
+                        tenantFlat: r.tenantFlat || '',
+                        month: r.month,
+                        year: r.year,
+                        date: r.date,
+                        settings: r.settings || {},
+                        previousReading: r.previousReading,
+                        currentReading: r.currentReading,
+                        unitsConsumed: r.unitsConsumed,
+                        electricityBill: r.electricityBill,
+                        totalRent: r.totalRent,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    existingIds.delete(r.id);
+                });
+
+                existingIds.forEach(rid => batch.delete(receiptsRef.doc(rid)));
+                batch.commit();
+            });
         }
 
-        document.getElementById('receiptModal').addEventListener('click', (e) => {
-            if (e.target.id === 'receiptModal') closeReceipt();
+        function startRealtimeListeners() {
+            if (!currentUser) return;
+            stopRealtimeListeners();
+
+            const uid = currentUser.uid;
+
+            const unsubBuildings = db.collection('users').doc(uid).collection('buildings')
+                .orderBy('updatedAt', 'desc')
+                .onSnapshot(snapshot => {
+                    const buildings = getLocalBuildings();
+                    const buildingsMap = {};
+                    buildings.forEach(b => { buildingsMap[b.id] = b; });
+
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (!buildingsMap[doc.id]) {
+                            buildingsMap[doc.id] = { id: doc.id, name: data.name, address: data.address || '', archived: data.archived || false, tenants: [] };
+                        } else {
+                            buildingsMap[doc.id].name = data.name;
+                            buildingsMap[doc.id].address = data.address || '';
+                            buildingsMap[doc.id].archived = data.archived || false;
+                        }
+                    });
+
+                    snapshot.docChanges().forEach(change => {
+                        if (change.type === 'removed') delete buildingsMap[change.doc.id];
+                    });
+
+                    localBuildings = Object.values(buildingsMap);
+                    refreshUI();
+                }, err => console.error('Buildings listener error:', err));
+
+            const unsubReceipts = db.collection('users').doc(uid).collection('receipts')
+                .orderBy('updatedAt', 'desc')
+                .onSnapshot(snapshot => {
+                    localHistory = [];
+                    snapshot.forEach(doc => {
+                        localHistory.push({ id: doc.id, ...doc.data() });
+                    });
+                    refreshUI();
+                }, err => console.error('Receipts listener error:', err));
+
+            unsubscribeListeners = [unsubBuildings, unsubReceipts];
+        }
+
+        function stopRealtimeListeners() {
+            unsubscribeListeners.forEach(unsub => unsub());
+            unsubscribeListeners = [];
+        }
+
+        function refreshUI() {
+            renderBuildingsList();
+            renderDashboard();
+            renderHistory();
+            populateSelectors();
+            if (currentViewingBuildingId) renderTenantList(currentViewingBuildingId);
+        }
+
+        function updateSyncIndicator() {
+            const el = document.getElementById('syncIndicator');
+            if (!el) return;
+            if (isSyncing) {
+                el.className = 'sync-dot syncing';
+            } else if (!navigator.onLine) {
+                el.className = 'sync-dot offline';
+            } else {
+                el.className = 'sync-dot';
+            }
+        }
+
+        // ==================== AUTH ====================
+
+        function renderAuthUI() {
+            const area = document.getElementById('authArea');
+            if (currentUser) {
+                const initial = (currentUser.displayName || currentUser.email || '?')[0].toUpperCase();
+                area.innerHTML = `
+                    <div style="position:relative">
+                        <button class="user-menu-btn" onclick="toggleUserDropdown()">
+                            <div class="user-avatar">${initial}</div>
+                            <span>${currentUser.email.split('@')[0]}</span>
+                        </button>
+                        <div class="user-dropdown" id="userDropdown">
+                            <div class="user-email">${currentUser.email}</div>
+                            <div class="sync-status" id="syncStatusLine">
+                                <div class="sync-dot" id="syncIndicator"></div>
+                                <span>Cloud Sync Active</span>
+                            </div>
+                            <div class="storage-info">Data is synced across all your devices</div>
+                            <button class="dropdown-btn" onclick="exportData()">📦 Export Backup</button>
+                            <button class="dropdown-btn danger" onclick="signOutUser()">Sign Out</button>
+                        </div>
+                    </div>`;
+            } else {
+                area.innerHTML = `
+                    <button class="auth-btn google-btn" onclick="signInWithGoogle()">
+                        <svg width="14" height="14" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                        Sign In
+                    </button>`;
+            }
+            updateSyncIndicator();
+        }
+
+        function toggleUserDropdown() {
+            document.getElementById('userDropdown').classList.toggle('show');
+        }
+
+        document.addEventListener('click', (e) => {
+            const dd = document.getElementById('userDropdown');
+            if (dd && !e.target.closest('.user-menu-btn') && !e.target.closest('.user-dropdown')) {
+                dd.classList.remove('show');
+            }
         });
 
-        document.getElementById('genericModal').addEventListener('click', (e) => {
-            if (e.target.id === 'genericModal') closeGenericModal();
-        });
+        function signInWithGoogle() {
+            showLoading();
+            const provider = new firebase.auth.GoogleAuthProvider();
+            firebase.auth().signInWithPopup(provider).then(result => {
+                hideLoading();
+                currentUser = result.user;
+                renderAuthUI();
+                migrateToCloud();
+            }).catch(err => {
+                hideLoading();
+                showToast('Sign in failed: ' + err.message);
+            });
+        }
 
-        // Migration
+        function signOutUser() {
+            stopRealtimeListeners();
+            firebase.auth().signOut().then(() => {
+                currentUser = null;
+                localBuildings = [];
+                localHistory = [];
+                renderAuthUI();
+                closeBuildingView();
+                refreshUI();
+                showToast('Signed out');
+            });
+        }
+
+        function migrateToCloud() {
+            showLoading();
+            const uid = currentUser.uid;
+            const receiptsRef = db.collection('users').doc(uid).collection('receipts');
+
+            receiptsRef.limit(1).get().then(snap => {
+                if (!snap.empty) {
+                    loadFromCloud();
+                    return;
+                }
+
+                const localB = getLocalBuildings();
+                const localH = getLocalHistory();
+
+                if (localB.length === 0 && localH.length === 0) {
+                    loadFromCloud();
+                    return;
+                }
+
+                const batch = db.batch();
+
+                localB.forEach(b => {
+                    const bRef = db.collection('users').doc(uid).collection('buildings').doc(b.id);
+                    batch.set(bRef, {
+                        name: b.name,
+                        address: b.address || '',
+                        archived: b.archived || false,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    b.tenants.forEach(t => {
+                        batch.set(bRef.collection('tenants').doc(t.id), {
+                            name: t.name,
+                            phone: t.phone || '',
+                            flatUnit: t.flatUnit || '',
+                            archived: t.archived || false,
+                            movedOutDate: t.movedOutDate || null,
+                            settings: t.settings || {},
+                            previousReading: t.previousReading || 0,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    });
+                });
+
+                localH.forEach(r => {
+                    batch.set(receiptsRef.doc(r.id), {
+                        buildingId: r.buildingId,
+                        buildingName: r.buildingName || '',
+                        tenantId: r.tenantId,
+                        tenantName: r.tenantName || '',
+                        tenantFlat: r.tenantFlat || '',
+                        month: r.month,
+                        year: r.year,
+                        date: r.date,
+                        settings: r.settings || {},
+                        previousReading: r.previousReading,
+                        currentReading: r.currentReading,
+                        unitsConsumed: r.unitsConsumed,
+                        electricityBill: r.electricityBill,
+                        totalRent: r.totalRent,
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                });
+
+                batch.commit().then(() => {
+                    localStorage.removeItem('rr_buildings');
+                    localStorage.removeItem('rr_receiptHistory');
+                    loadFromCloud();
+                    showToast('Data synced to cloud!');
+                }).catch(err => {
+                    hideLoading();
+                    console.error('Migration error:', err);
+                    showToast('Sync error, using local data');
+                    localBuildings = localB;
+                    localHistory = localH;
+                    startRealtimeListeners();
+                    refreshUI();
+                });
+            });
+        }
+
+        function loadFromCloud() {
+            startRealtimeListeners();
+            hideLoading();
+        }
+
+        function exportData() {
+            const data = {
+                buildings: getBuildings(),
+                receipts: getHistory(),
+                exportedAt: new Date().toISOString()
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rent-receipt-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Backup downloaded!');
+        }
+
+        // ==================== MIGRATION (old data) ====================
+
         function migrateOldData() {
             if (localStorage.getItem('rr_migrated')) return;
             const oldSettings = JSON.parse(localStorage.getItem('rentSettings'));
@@ -1213,7 +1695,7 @@
                 }]
             };
 
-            saveBuildings([building]);
+            saveLocalBuildings([building]);
 
             const migratedHistory = oldHistory.map(r => ({
                 id: genId(),
@@ -1233,7 +1715,7 @@
                 totalRent: r.totalRent
             }));
 
-            saveHistory(migratedHistory);
+            saveLocalHistory(migratedHistory);
             localStorage.removeItem('rentSettings');
             localStorage.removeItem('previousReading');
             localStorage.removeItem('receiptHistory');
@@ -1259,7 +1741,8 @@
             document.getElementById('migrationBanner').innerHTML = '';
         }
 
-        // Dashboard
+        // ==================== DASHBOARD ====================
+
         function renderDashboard() {
             const totalCollection = getTotalMonthlyCollection();
             const bldgCount = getActiveBuildings().length;
@@ -1284,7 +1767,8 @@
                 </div>`;
         }
 
-        // Buildings list
+        // ==================== BUILDINGS LIST ====================
+
         function renderBuildingsList() {
             const buildings = getBuildings();
             const container = document.getElementById('buildingsList');
@@ -1303,7 +1787,6 @@
             }
 
             let html = '';
-
             const active = buildings.filter(b => !b.archived);
             const archived = buildings.filter(b => b.archived);
 
@@ -1370,10 +1853,10 @@
             currentViewingBuildingId = null;
             document.getElementById('buildingsView').classList.remove('hidden');
             document.getElementById('tenantListView').classList.add('hidden');
-            renderBuildingsList();
         }
 
-        // Tenant list
+        // ==================== TENANT LIST ====================
+
         function renderTenantList(buildingId) {
             const building = findBuilding(buildingId);
             if (!building) return;
@@ -1434,11 +1917,7 @@
             }
 
             if (building.tenants.length === 0) {
-                html += `
-                    <div class="empty-state">
-                        <div class="icon">👤</div>
-                        <p>No tenants yet. Add your first tenant!</p>
-                    </div>`;
+                html += `<div class="empty-state"><div class="icon">👤</div><p>No tenants yet. Add your first tenant!</p></div>`;
             }
 
             html += `<button class="btn" onclick="openAddTenantModal('${buildingId}')" style="margin-top:12px;">
@@ -1449,7 +1928,8 @@
             container.innerHTML = html;
         }
 
-        // Building CRUD
+        // ==================== BUILDING CRUD ====================
+
         function openAddBuildingModal() {
             editingBuildingId = null;
             openGenericModal('Add Building', `
@@ -1529,10 +2009,8 @@
         function deleteBuilding(buildingId) {
             let buildings = getBuildings().filter(b => b.id !== buildingId);
             saveBuildings(buildings);
-
             let history = getHistory().filter(r => r.buildingId !== buildingId);
             saveHistory(history);
-
             closeGenericModal();
             renderBuildingsList();
             renderDashboard();
@@ -1549,7 +2027,8 @@
             showToast('Building restored');
         }
 
-        // Tenant CRUD
+        // ==================== TENANT CRUD ====================
+
         function tenantFormHTML(tenant) {
             const s = tenant ? tenant.settings : {};
             return `
@@ -1632,8 +2111,7 @@
                 buildings[bIdx].tenants.push({
                     id: genId(), name, phone, flatUnit: flat,
                     archived: false, movedOutDate: null,
-                    settings,
-                    previousReading: 0
+                    settings, previousReading: 0
                 });
             }
 
@@ -1667,10 +2145,8 @@
             if (bIdx === -1) return;
             buildings[bIdx].tenants = buildings[bIdx].tenants.filter(t => t.id !== tenantId);
             saveBuildings(buildings);
-
             let history = getHistory().filter(r => !(r.buildingId === buildingId && r.tenantId === tenantId));
             saveHistory(history);
-
             closeGenericModal();
             renderTenantList(buildingId);
             renderDashboard();
@@ -1734,13 +2210,12 @@
             }, 100);
         }
 
-        // Selectors
+        // ==================== SELECTORS ====================
+
         function populateSelectors() {
             const buildings = getActiveBuildings();
-
             const entryBldg = document.getElementById('entryBuilding');
             const filterBldg = document.getElementById('filterBuilding');
-
             const entryVal = entryBldg.value;
             const filterVal = filterBldg.value;
 
@@ -1760,19 +2235,18 @@
                 tenants.map(t => `<option value="${t.id}">${t.name}${t.flatUnit ? ' (' + t.flatUnit + ')' : ''}</option>`).join('');
         }
 
-        // Entry tab
+        // ==================== ENTRY TAB ====================
+
         function onEntryBuildingChange() {
             const buildingId = document.getElementById('entryBuilding').value;
             const tenantSel = document.getElementById('entryTenant');
             const infoDiv = document.getElementById('entryTenantInfo');
-
             if (!buildingId) {
                 tenantSel.innerHTML = '<option value="">Select a tenant...</option>';
                 infoDiv.classList.add('hidden');
                 resetEntryForm();
                 return;
             }
-
             populateTenantSelector(buildingId, 'entryTenant', 'Select a tenant...');
             infoDiv.classList.add('hidden');
             resetEntryForm();
@@ -1827,7 +2301,6 @@
             const toggle = document.querySelector('.manual-input-toggle');
             const section = document.getElementById('manualInputSection');
             manualMode = !manualMode;
-
             if (manualMode) {
                 toggle.classList.add('active');
                 section.classList.add('show');
@@ -1844,14 +2317,12 @@
             const buildingId = document.getElementById('entryBuilding').value;
             const tenantId = document.getElementById('entryTenant').value;
             if (!tenantId) return;
-
             const tenant = findTenant(buildingId, tenantId);
             if (!tenant) return;
 
             const currentReading = parseFloat(document.getElementById('currentReading').value) || 0;
             let previousReading = manualMode ? manualPrevReading : (tenant.previousReading || 0);
             const rate = tenant.settings.elecRate || 0;
-
             const unitsConsumed = Math.max(0, currentReading - previousReading);
             const electricityBill = unitsConsumed * rate;
 
@@ -1870,21 +2341,14 @@
         function generateReceipt() {
             const buildingId = document.getElementById('entryBuilding').value;
             const tenantId = document.getElementById('entryTenant').value;
-
-            if (!buildingId || !tenantId) {
-                showToast('Please select a building and tenant');
-                return;
-            }
+            if (!buildingId || !tenantId) { showToast('Please select a building and tenant'); return; }
 
             const building = findBuilding(buildingId);
             const tenant = findTenant(buildingId, tenantId);
             if (!building || !tenant) return;
 
             const settings = tenant.settings;
-            if (!settings.baseRent) {
-                showToast('Please set rent settings for this tenant');
-                return;
-            }
+            if (!settings.baseRent) { showToast('Please set rent settings for this tenant'); return; }
 
             const month = document.getElementById('month').value;
             const year = document.getElementById('year').value;
@@ -1892,25 +2356,14 @@
             let previousReading = manualMode ? manualPrevReading : (tenant.previousReading || 0);
             const unitsConsumed = Math.max(0, currentReading - previousReading);
             const electricityBill = unitsConsumed * (settings.elecRate || 0);
-
-            const totalRent = settings.baseRent + settings.waterCharges +
-                settings.maintenanceFee + settings.otherCharges + electricityBill;
+            const totalRent = settings.baseRent + settings.waterCharges + settings.maintenanceFee + settings.otherCharges + electricityBill;
 
             currentReceipt = {
-                buildingId,
-                buildingName: building.name,
-                tenantId,
-                tenantName: tenant.name,
-                tenantFlat: tenant.flatUnit,
-                month,
-                year,
-                date: new Date().toLocaleDateString(),
+                buildingId, buildingName: building.name,
+                tenantId, tenantName: tenant.name, tenantFlat: tenant.flatUnit,
+                month, year, date: new Date().toLocaleDateString(),
                 settings: { ...settings },
-                previousReading,
-                currentReading,
-                unitsConsumed,
-                electricityBill,
-                totalRent
+                previousReading, currentReading, unitsConsumed, electricityBill, totalRent
             };
 
             const receiptHTML = `
@@ -1924,56 +2377,21 @@
                 </div>
                 <div class="receipt-section">
                     <h4>Fixed Charges</h4>
-                    <div class="receipt-row">
-                        <span class="label">Base Rent</span>
-                        <span class="value">₹${settings.baseRent.toLocaleString()}</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Water Charges</span>
-                        <span class="value">₹${settings.waterCharges.toLocaleString()}</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Maintenance</span>
-                        <span class="value">₹${settings.maintenanceFee.toLocaleString()}</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Other Charges</span>
-                        <span class="value">₹${settings.otherCharges.toLocaleString()}</span>
-                    </div>
+                    <div class="receipt-row"><span class="label">Base Rent</span><span class="value">₹${settings.baseRent.toLocaleString()}</span></div>
+                    <div class="receipt-row"><span class="label">Water Charges</span><span class="value">₹${settings.waterCharges.toLocaleString()}</span></div>
+                    <div class="receipt-row"><span class="label">Maintenance</span><span class="value">₹${settings.maintenanceFee.toLocaleString()}</span></div>
+                    <div class="receipt-row"><span class="label">Other Charges</span><span class="value">₹${settings.otherCharges.toLocaleString()}</span></div>
                 </div>
                 <div class="receipt-section">
                     <h4>Electricity</h4>
-                    <div class="receipt-row">
-                        <span class="label">Previous Reading</span>
-                        <span class="value">${previousReading} units</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Current Reading</span>
-                        <span class="value">${currentReading} units</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Units Used</span>
-                        <span class="value">${unitsConsumed} units</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Rate per Unit</span>
-                        <span class="value">₹${settings.elecRate.toFixed(2)}</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Electricity Bill</span>
-                        <span class="value">₹${electricityBill.toFixed(2)}</span>
-                    </div>
+                    <div class="receipt-row"><span class="label">Previous Reading</span><span class="value">${previousReading} units</span></div>
+                    <div class="receipt-row"><span class="label">Current Reading</span><span class="value">${currentReading} units</span></div>
+                    <div class="receipt-row"><span class="label">Units Used</span><span class="value">${unitsConsumed} units</span></div>
+                    <div class="receipt-row"><span class="label">Rate per Unit</span><span class="value">₹${settings.elecRate.toFixed(2)}</span></div>
+                    <div class="receipt-row"><span class="label">Electricity Bill</span><span class="value">₹${electricityBill.toFixed(2)}</span></div>
                 </div>
-                <div class="receipt-total">
-                    <span>TOTAL</span>
-                    <span>₹${totalRent.toLocaleString()}</span>
-                </div>
-                <div class="receipt-footer">
-                    Generated on ${new Date().toLocaleDateString('en-IN', {
-                        day: 'numeric', month: 'short', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
-                    })}
-                </div>`;
+                <div class="receipt-total"><span>TOTAL</span><span>₹${totalRent.toLocaleString()}</span></div>
+                <div class="receipt-footer">Generated on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>`;
 
             document.getElementById('receiptContent').innerHTML = receiptHTML;
             document.getElementById('receiptModal').classList.add('active');
@@ -2001,17 +2419,15 @@
 
             showToast('Receipt saved!');
             closeReceipt();
-            loadHistory();
+            renderHistory();
             renderDashboard();
             document.getElementById('currentReading').value = '';
             document.getElementById('elecCalc').classList.add('hidden');
-
-            if (currentViewingBuildingId) {
-                renderTenantList(currentViewingBuildingId);
-            }
+            if (currentViewingBuildingId) renderTenantList(currentViewingBuildingId);
         }
 
-        // History
+        // ==================== HISTORY ====================
+
         function onFilterBuildingChange() {
             const buildingId = document.getElementById('filterBuilding').value;
             if (buildingId) {
@@ -2026,18 +2442,12 @@
             let history = getHistory();
             const filterBldg = document.getElementById('filterBuilding').value;
             const filterTenant = document.getElementById('filterTenant').value;
-
             if (filterBldg) history = history.filter(r => r.buildingId === filterBldg);
             if (filterTenant) history = history.filter(r => r.tenantId === filterTenant);
 
             const historyList = document.getElementById('historyList');
-
             if (history.length === 0) {
-                historyList.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">📋</div>
-                        <p>No receipts found.</p>
-                    </div>`;
+                historyList.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>No receipts found.</p></div>`;
                 return;
             }
 
@@ -2070,64 +2480,31 @@
                     <h3>RENT RECEIPT</h3>
                     <div class="receipt-month">${r.month} ${r.year}</div>
                 </div>
-                ${r.tenantName ? `
-                <div class="receipt-tenant-info">
-                    <div class="name">${r.tenantName}</div>
-                    <div class="detail">${r.tenantFlat ? r.tenantFlat + ' · ' : ''}${r.buildingName || ''}</div>
-                </div>` : ''}
+                ${r.tenantName ? `<div class="receipt-tenant-info"><div class="name">${r.tenantName}</div><div class="detail">${r.tenantFlat ? r.tenantFlat + ' · ' : ''}${r.buildingName || ''}</div></div>` : ''}
                 <div class="receipt-section">
                     <h4>Fixed Charges</h4>
-                    <div class="receipt-row">
-                        <span class="label">Base Rent</span>
-                        <span class="value">₹${r.settings.baseRent.toLocaleString()}</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Water Charges</span>
-                        <span class="value">₹${r.settings.waterCharges.toLocaleString()}</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Maintenance</span>
-                        <span class="value">₹${r.settings.maintenanceFee.toLocaleString()}</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Other Charges</span>
-                        <span class="value">₹${r.settings.otherCharges.toLocaleString()}</span>
-                    </div>
+                    <div class="receipt-row"><span class="label">Base Rent</span><span class="value">₹${r.settings.baseRent.toLocaleString()}</span></div>
+                    <div class="receipt-row"><span class="label">Water Charges</span><span class="value">₹${r.settings.waterCharges.toLocaleString()}</span></div>
+                    <div class="receipt-row"><span class="label">Maintenance</span><span class="value">₹${r.settings.maintenanceFee.toLocaleString()}</span></div>
+                    <div class="receipt-row"><span class="label">Other Charges</span><span class="value">₹${r.settings.otherCharges.toLocaleString()}</span></div>
                 </div>
                 <div class="receipt-section">
                     <h4>Electricity</h4>
-                    <div class="receipt-row">
-                        <span class="label">Previous Reading</span>
-                        <span class="value">${r.previousReading} units</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Current Reading</span>
-                        <span class="value">${r.currentReading} units</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Units Used</span>
-                        <span class="value">${r.unitsConsumed} units</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Rate per Unit</span>
-                        <span class="value">₹${r.settings.elecRate.toFixed(2)}</span>
-                    </div>
-                    <div class="receipt-row">
-                        <span class="label">Electricity Bill</span>
-                        <span class="value">₹${r.electricityBill.toFixed(2)}</span>
-                    </div>
+                    <div class="receipt-row"><span class="label">Previous Reading</span><span class="value">${r.previousReading} units</span></div>
+                    <div class="receipt-row"><span class="label">Current Reading</span><span class="value">${r.currentReading} units</span></div>
+                    <div class="receipt-row"><span class="label">Units Used</span><span class="value">${r.unitsConsumed} units</span></div>
+                    <div class="receipt-row"><span class="label">Rate per Unit</span><span class="value">₹${r.settings.elecRate.toFixed(2)}</span></div>
+                    <div class="receipt-row"><span class="label">Electricity Bill</span><span class="value">₹${r.electricityBill.toFixed(2)}</span></div>
                 </div>
-                <div class="receipt-total">
-                    <span>TOTAL</span>
-                    <span>₹${r.totalRent.toLocaleString()}</span>
-                </div>`;
+                <div class="receipt-total"><span>TOTAL</span><span>₹${r.totalRent.toLocaleString()}</span></div>`;
 
             document.getElementById('receiptContent').innerHTML = receiptHTML;
             document.getElementById('receiptModal').classList.add('active');
             viewingHistoryIndex = index;
         }
 
-        // PDF
+        // ==================== PDF ====================
+
         function generatePDF(receipt) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -2189,14 +2566,7 @@
             doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(148, 163, 184);
-            const fixedItems = [
-                ['Base Rent', `Rs. ${r.settings.baseRent.toLocaleString()}`],
-                ['Water Charges', `Rs. ${r.settings.waterCharges.toLocaleString()}`],
-                ['Maintenance', `Rs. ${r.settings.maintenanceFee.toLocaleString()}`],
-                ['Other Charges', `Rs. ${r.settings.otherCharges.toLocaleString()}`]
-            ];
-
-            fixedItems.forEach(([label, value]) => {
+            [['Base Rent', `Rs. ${r.settings.baseRent.toLocaleString()}`], ['Water Charges', `Rs. ${r.settings.waterCharges.toLocaleString()}`], ['Maintenance', `Rs. ${r.settings.maintenanceFee.toLocaleString()}`], ['Other Charges', `Rs. ${r.settings.otherCharges.toLocaleString()}`]].forEach(([label, value]) => {
                 doc.setTextColor(148, 163, 184);
                 doc.text(label, margin, y);
                 doc.setTextColor(248, 250, 252);
@@ -2219,15 +2589,7 @@
 
             doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
-            const elecItems = [
-                ['Previous Reading', `${r.previousReading} units`],
-                ['Current Reading', `${r.currentReading} units`],
-                ['Units Used', `${r.unitsConsumed} units`],
-                ['Rate per Unit', `Rs. ${r.settings.elecRate.toFixed(2)}`],
-                ['Electricity Bill', `Rs. ${r.electricityBill.toFixed(2)}`]
-            ];
-
-            elecItems.forEach(([label, value]) => {
+            [['Previous Reading', `${r.previousReading} units`], ['Current Reading', `${r.currentReading} units`], ['Units Used', `${r.unitsConsumed} units`], ['Rate per Unit', `Rs. ${r.settings.elecRate.toFixed(2)}`], ['Electricity Bill', `Rs. ${r.electricityBill.toFixed(2)}`]].forEach(([label, value]) => {
                 doc.setTextColor(148, 163, 184);
                 doc.text(label, margin, y);
                 doc.setTextColor(248, 250, 252);
@@ -2250,11 +2612,7 @@
             doc.setFontSize(9);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(100, 116, 139);
-            const genDate = new Date().toLocaleDateString('en-IN', {
-                day: 'numeric', month: 'short', year: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-            doc.text(`Generated on ${genDate}`, pageWidth / 2, y, { align: 'center' });
+            doc.text(`Generated on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`, pageWidth / 2, y, { align: 'center' });
 
             return doc.output('blob');
         }
@@ -2275,21 +2633,7 @@
 
         function shareReceipt() {
             const r = currentReceipt;
-            const text = `
-🏠 RENT RECEIPT - ${r.month} ${r.year}
-${r.tenantName ? `👤 ${r.tenantName}${r.tenantFlat ? ' (' + r.tenantFlat + ')' : ''}\n🏢 ${r.buildingName || ''}` : ''}
-
-📋 FIXED CHARGES:
-Base Rent: ₹${r.settings.baseRent}
-Water: ₹${r.settings.waterCharges}
-Maintenance: ₹${r.settings.maintenanceFee}
-Other: ₹${r.settings.otherCharges}
-
-⚡ ELECTRICITY:
-Units: ${r.unitsConsumed} × ₹${r.settings.elecRate} = ₹${r.electricityBill.toFixed(2)}
-
-💰 TOTAL: ₹${r.totalRent.toLocaleString()}
-            `.trim();
+            const text = `🏠 RENT RECEIPT - ${r.month} ${r.year}\n${r.tenantName ? `👤 ${r.tenantName}${r.tenantFlat ? ' (' + r.tenantFlat + ')' : ''}\n🏢 ${r.buildingName || ''}\n` : ''}\n📋 FIXED CHARGES:\nBase Rent: ₹${r.settings.baseRent}\nWater: ₹${r.settings.waterCharges}\nMaintenance: ₹${r.settings.maintenanceFee}\nOther: ₹${r.settings.otherCharges}\n\n⚡ ELECTRICITY:\nUnits: ${r.unitsConsumed} × ₹${r.settings.elecRate} = ₹${r.electricityBill.toFixed(2)}\n\n💰 TOTAL: ₹${r.totalRent.toLocaleString()}`;
 
             const pdfBlob = generatePDF(r);
             const pdfFile = new File([pdfBlob], `Rent-Receipt-${r.month}-${r.year}.pdf`, { type: 'application/pdf' });
@@ -2313,7 +2657,8 @@ Units: ${r.unitsConsumed} × ₹${r.settings.elecRate} = ₹${r.electricityBill.
             }
         }
 
-        // Tab navigation
+        // ==================== EVENT LISTENERS ====================
+
         function setupEventListeners() {
             document.querySelectorAll('.nav-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -2340,9 +2685,13 @@ Units: ${r.unitsConsumed} × ₹${r.settings.elecRate} = ₹${r.electricityBill.
                 manualPrevReading = parseFloat(this.value) || 0;
                 calculateElectricity();
             });
+
+            window.addEventListener('online', () => { updateSyncIndicator(); showToast('Back online'); });
+            window.addEventListener('offline', () => { updateSyncIndicator(); showToast('You are offline'); });
         }
 
-        // Init
+        // ==================== INIT ====================
+
         const yearSelect = document.getElementById('year');
         for (let y = currentYear; y >= currentYear - 5; y--) {
             const option = document.createElement('option');
@@ -2352,6 +2701,20 @@ Units: ${r.unitsConsumed} × ₹${r.settings.elecRate} = ₹${r.electricityBill.
         }
 
         document.getElementById('month').value = months[new Date().getMonth()];
+
+        // Auth state listener
+        firebase.auth().onAuthStateChanged(user => {
+            currentUser = user;
+            renderAuthUI();
+            if (user) {
+                localBuildings = [];
+                localHistory = [];
+                startRealtimeListeners();
+            } else {
+                stopRealtimeListeners();
+                refreshUI();
+            }
+        });
 
         window.onload = function () {
             migrateOldData();
